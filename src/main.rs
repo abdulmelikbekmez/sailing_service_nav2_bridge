@@ -1,11 +1,11 @@
 #[derive(Serialize, Deserialize)]
 struct DataFormat {
-    size: u32,
-    points: Vec<String>,
+    size: i32,
+    points: Vec<f32>,
 }
 
 use futures::StreamExt;
-use r2r::robot_localization::srv::FromLL;
+use r2r::{geometry_msgs::msg::PoseStamped, robot_localization::srv::FromLL};
 use serde::{Deserialize, Serialize};
 
 #[tokio::main]
@@ -25,24 +25,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("service available.");
 
         while let Some(msg) = sub_gps.next().await {
+            println!("message received from publisher {:?}", msg.data);
             let Ok(data) = serde_json::from_str::<DataFormat>(msg.data.as_str()) else {
                 println!("Deserialization failure..");
                 continue;
             };
 
+            let mut goal_poses = vec![];
+
             for i in 0..data.size {
-                let ll_point = r2r::geographic_msgs::msg::GeoPoint {
-                    latitude: 40.0,
-                    longitude: 27.0,
-                    altitude: 0.0,
-                };
-                // TODO: set ll_points attributes
+                let mut ll_point = r2r::geographic_msgs::msg::GeoPoint::default();
+                ll_point.latitude = data.points[(i * 2) as usize] as f64;
+                ll_point.longitude = data.points[(i * 2 + 1) as usize] as f64;
                 let req = FromLL::Request { ll_point };
+                println!("request => {:?}", req);
                 if let Ok(resp) = client.request(&req).unwrap().await {
                     println!("{:?}", resp.map_point);
+
+                    let mut pose = PoseStamped::default();
+                    // pose.header.stamp
+                    pose.pose.position.x = resp.map_point.x;
+                    pose.pose.position.y = resp.map_point.y;
+                    goal_poses.push(pose);
                 }
-                print!("asdf");
             }
+
+            println!("goal poses => {:?}", goal_poses)
         }
     });
 
