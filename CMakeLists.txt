@@ -16,6 +16,8 @@ r2r_cargo(std_msgs               # just to test that it works
           geometry_msgs  
           geographic_msgs
           robot_localization
+          nav_msgs
+          nav2_msgs
          )
 
 # install binaries
