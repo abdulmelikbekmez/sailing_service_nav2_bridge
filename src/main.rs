@@ -7,18 +7,20 @@ struct DataFormat {
 use futures::StreamExt;
 use r2r::nav2_msgs::action::NavigateThroughPoses;
 use r2r::{geometry_msgs::msg::PoseStamped, robot_localization::srv::FromLL};
+use r2r::{Clock, ClockType};
 use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = r2r::Context::create()?;
     let mut node = r2r::Node::create(ctx, "testnode", "")?;
+    let mut clock = Clock::create(ClockType::RosTime)?;
 
     let client = node.create_client::<FromLL::Service>("/fromLL")?;
     let waiting = node.is_available(&client)?;
 
     let action_client =
-        node.create_action_client::<NavigateThroughPoses::Action>("/NavigateThroughPoses")?;
+        node.create_action_client::<NavigateThroughPoses::Action>("/navigate_through_poses")?;
 
     let action_waiting = node.is_available(&action_client)?;
 
@@ -53,7 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{:?}", resp.map_point);
 
                     let mut pose = PoseStamped::default();
-                    // pose.header.stamp
+                    pose.header.frame_id = "odom".to_string();
+                    pose.header.stamp = Clock::to_builtin_time(&clock.get_now().unwrap());
                     pose.pose.position.x = resp.map_point.x;
                     pose.pose.position.y = resp.map_point.y;
                     poses.push(pose);
